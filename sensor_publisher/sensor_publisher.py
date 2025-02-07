@@ -29,9 +29,9 @@ client.loop_start()
 
 while True:
     sensor_data = {
-        "temperature": round(random.uniform(20, 30), 2),
-        "humidity": round(random.uniform(40, 70), 2),
-        "soil_moisture": round(random.uniform(300, 700), 2),
+        "temperature": round(random.uniform(20, 50), 2),
+        "humidity": round(random.uniform(40, 90), 2),
+        "soil_moisture": round(random.uniform(200, 700), 2),
     }
     
     client.publish(MQTT_TOPIC, json.dumps(sensor_data))
