@@ -1,39 +1,55 @@
 import paho.mqtt.client as mqtt
-import json
-import time
 import random
+import time
+import configparser
+import threading
+
+# Load MQTT configuration from config.ini
+config = configparser.ConfigParser()
+config.read('config.ini')
 
 MQTT_BROKER = "mosquitto"  # Use the service name from Docker Compose
 MQTT_PORT = 1883
-MQTT_TOPIC = "farming/sensors"
 
-def on_connect(client, userdata, flags, reason_code, properties):  # ✅ Corrected function signature
-    if reason_code == 0:
-        print("✅ Connected to MQTT Broker!")
-    else:
-        print(f"⚠️ Failed to connect, reason code {reason_code}")
+farms = int(config['data_generation']['farms'])  # Number of farms
+time_sleep = int(config['data_generation']['time_sleep'])  # Delay between publishing
+sensors = config['data_generation']['sensors'].split('|')  # Sensor types
 
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)  # ✅ Use API v2 to avoid warnings
-client.on_connect = on_connect
+# Initialize MQTT Client
+mqtt_client = mqtt.Client()
+mqtt_client.connect(MQTT_BROKER, port=MQTT_PORT)
 
-# Retry connection
-while True:
-    try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        break
-    except Exception as e:
-        print(f"🚨 Connection failed: {e}, retrying in 5 seconds...")
-        time.sleep(5)
+# Function to publish farm data to MQTT broker
+def publish_farm_data(mqtt_client, sensors, farm):
+    while True:
+        # Generate random sensor data for each sensor type
+        for sensor in sensors:
+            if sensor == 'temperature':
+                data = round(random.uniform(0, 50), 2)  # Simulating temperature
+            elif sensor == 'humidity':
+                data = round(random.uniform(30, 90), 2)  # Simulating humidity
+            elif sensor == 'soil_moisture':
+                data = random.randint(200, 700)  # Simulating soil moisture
+            elif sensor == 'light_intensity':
+                data = random.randint(0, 1100)  # Simulating light intensity
 
-client.loop_start()
+            # Construct structured MQTT topic
+            topic = f"farming/farm_{farm}/{sensor}"
+            
+            # Publish data in JSON format
+            payload = f'{{"{sensor}": {data}, "farm": "farm_{farm}"}}'
+            mqtt_client.publish(topic, payload)
+            print(f"Published {topic}: {payload}")
 
-while True:
-    sensor_data = {
-        "temperature": round(random.uniform(20, 50), 2),
-        "humidity": round(random.uniform(40, 90), 2),
-        "soil_moisture": round(random.uniform(200, 700), 2),
-    }
-    
-    client.publish(MQTT_TOPIC, json.dumps(sensor_data))
-    print(f"📡 Published: {sensor_data}")
-    time.sleep(5)
+        time.sleep(time_sleep)  # Delay between publishing data
+
+# Start publishing data using multiple threads (one per farm)
+threads = []
+for farm in range(1, farms + 1):  # Starts from farm_1
+    thread = threading.Thread(target=publish_farm_data, args=(mqtt_client, sensors, farm))
+    threads.append(thread)
+    thread.start()
+
+# Keep threads running
+for thread in threads:
+    thread.join()
