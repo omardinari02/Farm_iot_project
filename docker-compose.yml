@@ -46,7 +46,7 @@ services:
     depends_on:
       - influxdb
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./grafana:/var/lib/grafana
     restart: unless-stopped
 
   nodered:
@@ -57,7 +57,8 @@ services:
     depends_on:
       - mosquitto
     volumes:
-      - nodered_data:/data
+      - ./nodered:/data
+      - ./nodered/telegram_config.json:/data/telegram_config.json
     restart: unless-stopped
 
   sensor_publisher:
@@ -67,7 +68,7 @@ services:
       - mosquitto
     restart: always
 
+
+
 volumes:
   influxdb_data:
-  grafana_data:
-  nodered_data:
